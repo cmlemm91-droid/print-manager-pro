@@ -1,0 +1,89 @@
+{% from "_macros.html" import icon, csrf with context %}<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>{{ page_title }} · PrintManager Pro</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/">
+      <span class="brand-mark">{{ icon('printers') }}</span>
+      <span class="brand-text">
+        <strong>Print<span>Manager</span></strong>
+        <small>Pro · 3D-Druck</small>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <div class="nav-label">Übersicht</div>
+      <a class="nav-link {{ 'active' if active == '/' else '' }}" href="/">
+        {{ icon('dashboard') }} Dashboard
+      </a>
+
+      <div class="nav-label">Betrieb</div>
+      <a class="nav-link {{ 'active' if active.startswith('/orders') else '' }}" href="/orders">
+        {{ icon('orders') }} Aufträge
+        {% if nav_open_count %}<span class="nav-count">{{ nav_open_count }}</span>{% endif %}
+      </a>
+      <a class="nav-link {{ 'active' if active.startswith('/invoices') else '' }}" href="/invoices">
+        {{ icon('invoices') }} Rechnungen
+      </a>
+      <a class="nav-link {{ 'active' if active.startswith('/customers') else '' }}" href="/customers">
+        {{ icon('customers') }} Kunden
+      </a>
+      <a class="nav-link {{ 'active' if active.startswith('/inventory') else '' }}" href="/inventory">
+        {{ icon('inventory') }} Lager
+      </a>
+      <a class="nav-link {{ 'active' if active.startswith('/printers') else '' }}" href="/printers">
+        {{ icon('printers') }} Drucker
+      </a>
+
+      <div class="nav-label">System</div>
+      <a class="nav-link {{ 'active' if active.startswith('/settings') else '' }}" href="/settings">
+        {{ icon('settings') }} Einstellungen
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="sidebar-card">
+        {{ icon('chart') }}
+        <div>
+          <strong>{{ settings.company_name }}</strong>
+          <small><span class="status-dot"></span>Lokal auf dem Raspberry Pi</small>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost btn-icon menu-btn" data-toggle-sidebar aria-label="Menü öffnen">
+        {{ icon('menu') }}
+      </button>
+      <div class="page-title">
+        <h1>{{ page_title }}</h1>
+        <p>{{ page_subtitle }}</p>
+      </div>
+      <div class="topbar-actions">
+        {% block actions %}{% endblock %}
+      </div>
+    </header>
+
+    <main class="content">
+      {% if flash %}
+      <div class="flash">{{ icon('check') }}<span>{{ flash }}</span></div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

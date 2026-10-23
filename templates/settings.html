@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/export/orders.csv">{{ icon('download') }}<span>Aufträge</span></a>
+  <a class="btn btn-ghost" href="/export/customers.csv">{{ icon('download') }}<span>Kunden</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="settings-layout stack">
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('invoices') }} Firmenlogo</div>
+      <span class="card-sub">erscheint auf der Rechnung</span>
+    </div>
+    <div class="card-body">
+      <div class="logo-box">
+        <div class="logo-preview">
+          {% if logo %}<img src="{{ logo }}" alt="Firmenlogo">{% else %}<span>Kein Logo</span>{% endif %}
+        </div>
+        <div style="flex:1;min-width:220px">
+          <form method="post" action="/settings/logo" enctype="multipart/form-data" class="stack-sm">
+            {{ csrf() }}
+            <input type="file" name="logo" accept="image/png,image/jpeg" required>
+            <div class="actions-row">
+              <button class="btn btn-primary btn-sm" type="submit">{{ icon('download') }} Hochladen</button>
+              <span class="tiny muted">PNG oder JPG, maximal 4 MB.</span>
+            </div>
+          </form>
+          {% if logo %}
+          <form method="post" action="/settings/logo/delete" style="margin-top:8px" data-confirm="Logo wirklich entfernen?">
+            {{ csrf() }}
+            <button class="btn btn-ghost btn-sm" type="submit">{{ icon('trash') }} Logo entfernen</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <form class="card" method="post" action="/settings">
+    {{ csrf() }}
+
+    <div class="form-section">
+      <div class="form-section-title">Firmendaten</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Firmenname <span class="req">*</span></label>
+          <input name="company_name" value="{{ settings.company_name }}" required>
+        </div>
+        <div class="field">
+          <label>Inhaber / Ansprechpartner</label>
+          <input name="company_owner" value="{{ settings.company_owner }}">
+        </div>
+        <div class="field">
+          <label>Straße &amp; Hausnummer</label>
+          <input name="company_street" value="{{ settings.company_street }}">
+        </div>
+        <div class="field">
+          <label>PLZ &amp; Ort</label>
+          <div style="display:flex;gap:8px">
+            <input name="company_zip" value="{{ settings.company_zip }}" style="width:35%" placeholder="PLZ">
+            <input name="company_city" value="{{ settings.company_city }}" placeholder="Ort">
+          </div>
+        </div>
+        <div class="field">
+          <label>E-Mail</label>
+          <input name="company_email" type="email" value="{{ settings.company_email }}">
+        </div>
+        <div class="field">
+          <label>Telefon</label>
+          <input name="company_phone" value="{{ settings.company_phone }}">
+        </div>
+        <div class="field">
+          <label>Website</label>
+          <input name="company_web" value="{{ settings.company_web }}" placeholder="https://…">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Steuern &amp; Bankverbindung</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Steuernummer</label>
+          <input name="tax_id" value="{{ settings.tax_id }}" placeholder="optional">
+        </div>
+        <div class="field">
+          <label>USt-IdNr.</label>
+          <input name="vat_id" value="{{ settings.vat_id }}" placeholder="optional">
+        </div>
+        <div class="field">
+          <label>IBAN</label>
+          <input name="iban" value="{{ settings.iban }}">
+        </div>
+        <div class="field">
+          <label>BIC</label>
+          <input name="bic" value="{{ settings.bic }}">
+        </div>
+        <div class="field">
+          <label>Bankname</label>
+          <input name="bank_name" value="{{ settings.bank_name }}" placeholder="optional">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Kalkulation</div>
+      <div class="form-grid cols-3">
+        <div class="field">
+          <label>CAD-Stundensatz (€)</label>
+          <input name="cad_hourly_rate" type="number" min="0" step="0.01" value="{{ settings.cad_hourly_rate }}">
+        </div>
+        <div class="field">
+          <label>Standard-Marge (%)</label>
+          <input name="margin_percent" type="number" min="0" step="1" value="{{ settings.margin_percent }}">
+        </div>
+        <div class="field">
+          <label>Strompreis (€ / kWh)</label>
+          <input name="electricity_price" type="number" min="0" step="0.01" value="{{ settings.electricity_price }}">
+        </div>
+      </div>
+      <div class="notice" style="margin-top:14px">
+        {{ icon('chart') }}
+        <span>Preis = (Material + Maschinenzeit + CAD + Strom + Zusatzkosten) × (1 + Marge). Die Werte werden pro Auftrag als Momentaufnahme gespeichert.</span>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Rechnungen</div>
+      <div class="form-grid cols-3">
+        <div class="field">
+          <label>Auftrags-Präfix</label>
+          <input name="order_prefix" value="{{ settings.order_prefix }}" maxlength="6">
+          <span class="hint">z. B. AU → AU-2026-0001</span>
+        </div>
+        <div class="field">
+          <label>Rechnungs-Präfix</label>
+          <input name="invoice_prefix" value="{{ settings.invoice_prefix }}" maxlength="6">
+          <span class="hint">z. B. RE → RE-2026-0001</span>
+        </div>
+        <div class="field">
+          <label>Zahlungsziel (Tage)</label>
+          <input name="payment_days" type="number" min="0" step="1" value="{{ settings.payment_days }}">
+        </div>
+        <div class="field">
+          <label>Umsatzsteuer (%)</label>
+          <input name="vat_rate" type="number" min="0" max="100" step="0.1" value="{{ settings.vat_rate }}">
+        </div>
+        <div class="field span-2">
+          <label>Kleinunternehmerregelung</label>
+          <div class="check-row">
+            <input type="checkbox" id="small_business" name="small_business" value="1" {{ 'checked' if settings.small_business == '1' else '' }}>
+            <label for="small_business">§ 19 UStG anwenden
+              <span class="hint">Auf Rechnungen wird dann keine Umsatzsteuer ausgewiesen.</span>
+            </label>
+          </div>
+        </div>
+        <div class="field span-3">
+          <label>Schlusstext auf der Rechnung</label>
+          <textarea name="invoice_note" style="min-height:60px">{{ settings.invoice_note }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{{ icon('check') }} Einstellungen speichern</button>
+    </div>
+  </form>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('refresh') }} Sicherung &amp; Export</div>
+    </div>
+    <div class="card-body">
+      <div class="notice" style="margin-bottom:14px">
+        {{ icon('alert') }}
+        <span>Beim Start wird täglich automatisch eine Sicherung angelegt (maximal 30 Stück). Zusätzlich kannst du jederzeit manuell sichern.</span>
+      </div>
+      <div class="actions-row">
+        <form method="post" action="/settings/backup">
+          {{ csrf() }}
+          <button class="btn btn-primary" type="submit">{{ icon('download') }} Jetzt sichern</button>
+        </form>
+        <a class="btn btn-ghost" href="/export/orders.csv">{{ icon('download') }} Aufträge als CSV</a>
+        <a class="btn btn-ghost" href="/export/customers.csv">{{ icon('download') }} Kunden als CSV</a>
+      </div>
+
+      <div class="divider"></div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <dt>Datenbank</dt>
+          <dd class="mono" style="font-size:11.5px">{{ db_path }}</dd>
+        </div>
+        <div class="detail-item">
+          <dt>Sicherungen</dt>
+          <dd class="mono" style="font-size:11.5px">{{ backup_dir }}</dd>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('settings') }} System</div>
+    </div>
+    <div class="card-body">
+      <div class="detail-list">
+        <div class="detail-item"><dt>Anwendung</dt><dd>PrintManager Pro 2.0</dd></div>
+        <div class="detail-item"><dt>Python</dt><dd>{{ python_version }}</dd></div>
+        <div class="detail-item"><dt>Betrieb</dt><dd>Lokal im Netzwerk (Port 8000)</dd></div>
+        <div class="detail-item"><dt>Datenhaltung</dt><dd>SQLite – keine Cloud, keine externen Dienste</dd></div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

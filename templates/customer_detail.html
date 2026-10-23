@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, badge, paid_badge, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/customers">{{ icon('arrow-left') }}<span>Kunden</span></a>
+  <a class="btn btn-ghost" href="/customers/{{ customer.id }}/edit">{{ icon('edit') }}<span>Bearbeiten</span></a>
+  <a class="btn btn-primary" href="/orders/new?customer_id={{ customer.id }}">{{ icon('plus') }}<span>Neuer Auftrag</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid" style="margin-bottom:18px">
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Aufträge</span><span class="kpi-icon tone-blue">{{ icon('orders') }}</span></div>
+    <div class="kpi-value">{{ orders|length }}</div>
+    <div class="kpi-sub">insgesamt</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Umsatz</span><span class="kpi-icon tone-green">{{ icon('money') }}</span></div>
+    <div class="kpi-value">{{ revenue|money }}</div>
+    <div class="kpi-sub">abgeschlossene Aufträge</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Offen</span><span class="kpi-icon tone-amber">{{ icon('clock') }}</span></div>
+    <div class="kpi-value">{{ open_count }}</div>
+    <div class="kpi-sub">in Bearbeitung</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Rechnungen</span><span class="kpi-icon tone-violet">{{ icon('invoices') }}</span></div>
+    <div class="kpi-value">{{ invoice_count }}</div>
+    <div class="kpi-sub">gestellt</div>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('orders') }} Auftragshistorie</div>
+      <span class="card-sub">{{ orders|length }} {{ 'Eintrag' if orders|length == 1 else 'Einträge' }}</span>
+    </div>
+    <div class="card-body tight">
+      {% if orders %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Auftrag</th><th>Status</th><th>Datum</th><th class="num">Preis</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+            <tr>
+              <td>
+                <a class="cell-stack" href="/orders/{{ order.id }}">
+                  <span class="table-title">{{ order.order_number or ('#' ~ order.id) }}</span>
+                  <small>{{ order.model }}</small>
+                </a>
+              </td>
+              <td>{{ badge(order.status) }}</td>
+              <td class="muted">{{ order.created_at|date }}</td>
+              <td class="num strong">{{ order.price|money }}</td>
+              <td class="num"><a class="btn btn-ghost btn-sm" href="/orders/{{ order.id }}">Öffnen</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {{ empty('orders', 'Noch keine Aufträge', 'Lege den ersten Auftrag für diesen Kunden an.') }}
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="side-stack">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('customers') }} Kontaktdaten</div>
+        <form method="post" action="/customers/{{ customer.id }}/delete" data-confirm="Kunde wirklich löschen?">
+          {{ csrf() }}
+          <button class="btn btn-danger btn-sm" type="submit">{{ icon('trash') }} Löschen</button>
+        </form>
+      </div>
+      <div class="card-body">
+        <div class="profile-head" style="margin-bottom:14px">
+          <div class="avatar lg">{{ customer.name[:2]|upper }}</div>
+          <div>
+            <h2>{{ customer.name }}</h2>
+            {% if customer.company %}<p>{{ customer.company }}</p>{% endif %}
+          </div>
+        </div>
+
+        {% if customer.email %}
+        <a class="contact-row" href="mailto:{{ customer.email }}">{{ icon('invoices') }} {{ customer.email }}</a>
+        {% endif %}
+        {% if customer.phone %}
+        <a class="contact-row" href="tel:{{ customer.phone }}">{{ icon('customers') }} {{ customer.phone }}</a>
+        {% endif %}
+        {% if customer.street or customer.city %}
+        <div class="contact-row">{{ icon('inventory') }}
+          <span>{{ customer.street or '' }} {{ customer.house_number or '' }}<br>{{ customer.zip or '' }} {{ customer.city or '' }}</span>
+        </div>
+        {% endif %}
+
+        {% if customer.notes %}
+        <div class="divider"></div>
+        <div class="tiny muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Notizen</div>
+        <div class="note-box">{{ customer.notes }}</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('user-plus') }} Schnellaktionen</div>
+      </div>
+      <div class="card-body stack-sm">
+        <a class="btn btn-soft btn-block" href="/orders/new?customer_id={{ customer.id }}">{{ icon('plus') }} Neuer Auftrag</a>
+        <a class="btn btn-ghost btn-block" href="/customers/{{ customer.id }}/edit">{{ icon('edit') }} Kontaktdaten bearbeiten</a>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

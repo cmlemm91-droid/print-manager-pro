@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, badge, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/export/orders.csv">{{ icon('download') }}<span>Export</span></a>
+  <a class="btn btn-primary" href="/orders/new">{{ icon('plus') }}<span>Neuer Auftrag</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-head">
+      <span class="kpi-label">Umsatz diesen Monat</span>
+      <span class="kpi-icon tone-green">{{ icon('money') }}</span>
+    </div>
+    <div class="kpi-value">{{ stats.revenue_month|money }}</div>
+    <div class="kpi-sub">{{ stats.revenue_year|money }} in diesem Jahr</div>
+  </div>
+
+  <div class="kpi">
+    <div class="kpi-head">
+      <span class="kpi-label">Gewinn diesen Monat</span>
+      <span class="kpi-icon tone-blue">{{ icon('chart') }}</span>
+    </div>
+    <div class="kpi-value">{{ stats.profit_month|money }}</div>
+    <div class="kpi-sub">
+      {% if stats.revenue_month %}
+        Marge {{ ((stats.profit_month / stats.revenue_month) * 100)|round(0)|int }} %
+      {% else %}
+        Noch keine abgeschlossenen Aufträge
+      {% endif %}
+    </div>
+  </div>
+
+  <a class="kpi" href="/orders?status=open">
+    <div class="kpi-head">
+      <span class="kpi-label">Offene Aufträge</span>
+      <span class="kpi-icon tone-amber">{{ icon('clock') }}</span>
+    </div>
+    <div class="kpi-value">{{ stats.open_count }}</div>
+    <div class="kpi-sub">
+      {% if stats.printing_count %}{{ stats.printing_count }} gerade im Druck{% else %}Nichts in der Maschine{% endif %}
+    </div>
+  </a>
+
+  <a class="kpi" href="/invoices">
+    <div class="kpi-head">
+      <span class="kpi-label">Offene Zahlungen</span>
+      <span class="kpi-icon tone-red">{{ icon('card') }}</span>
+    </div>
+    <div class="kpi-value small">{{ stats.unpaid_sum|money }}</div>
+    <div class="kpi-sub">{{ stats.unpaid }} {{ 'Rechnung' if stats.unpaid == 1 else 'Rechnungen' }} noch nicht bezahlt</div>
+  </a>
+</div>
+
+{% if stats.overdue or stats.low_stock %}
+<div class="stack" style="margin-top:18px">
+  {% if stats.overdue %}
+  <div class="notice warn">
+    {{ icon('alert') }}
+    <div><strong>{{ stats.overdue }} {{ 'Auftrag ist' if stats.overdue == 1 else 'Aufträge sind' }} überfällig.</strong>
+      <a href="/orders?status=open&amp;sort=faellig" style="text-decoration:underline">Jetzt ansehen</a></div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="dash-grid">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">{{ icon('chart') }} Umsatz &amp; Gewinn</div>
+        <div class="card-sub">Die letzten sechs Monate</div>
+      </div>
+      <div class="chart-legend">
+        <span><span class="legend-dot revenue"></span>Umsatz</span>
+        <span><span class="legend-dot profit"></span>Gewinn</span>
+      </div>
+    </div>
+    <div class="card-body">
+      {% if chart_peak %}
+      <div class="chart">
+        {% for point in chart %}
+        {% set profit_height = (point.profit / chart_peak * 100) if chart_peak else 0 %}
+        <div class="chart-col">
+          <div class="chart-bar-area">
+            <div class="chart-bars">
+              <div class="chart-bar" style="height: {{ point.height }}%" title="Umsatz {{ point.revenue|money }}"></div>
+              <div class="chart-bar profit" style="height: {{ profit_height|round(1) }}%" title="Gewinn {{ point.profit|money }}"></div>
+            </div>
+          </div>
+          <div class="chart-label">{{ point.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty('chart', 'Noch keine Umsätze', 'Sobald Aufträge abgeschlossen sind, erscheint hier die Entwicklung.') }}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('inventory') }} Lagerwarnungen</div>
+      <a class="btn btn-ghost btn-sm" href="/inventory">Lager</a>
+    </div>
+    <div class="card-body tight">
+      {% if stats.low_stock %}
+      <div class="list">
+        {% for item in stats.low_stock %}
+        <div class="list-item">
+          <span class="color-dot" style="background: {{ item.color }}"></span>
+          <div class="list-body">
+            <div class="list-title">{{ item.material }} · {{ item.color }}</div>
+            <div class="list-meta">Warnschwelle {{ item.min_weight|num1 }} g</div>
+          </div>
+          <div class="list-value" style="color:#b91c1c">{{ item.weight|num1 }} g<small>Restbestand</small></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty('check', 'Alle Bestände sind ausreichend.') }}
+      {% endif %}
+    </div>
+    <div class="card-foot">
+      <div class="row-between small muted">
+        <span>Lagerwert gesamt</span>
+        <strong style="color:var(--ink)">{{ stats.stock_value|money }}</strong>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="dash-grid">
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('orders') }} Letzte Aufträge</div>
+      <a class="btn btn-ghost btn-sm" href="/orders">Alle anzeigen {{ icon('arrow-right', 'icon-sm') }}</a>
+    </div>
+    <div class="card-body tight">
+      {% if recent %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Auftrag</th>
+              <th>Kunde</th>
+              <th>Status</th>
+              <th class="num">Preis</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent %}
+            <tr>
+              <td>
+                <a class="cell-stack" href="/orders/{{ order.id }}">
+                  <span class="table-title">{{ order.order_number or ('#' ~ order.id) }}</span>
+                  <small>{{ order.model }}</small>
+                </a>
+              </td>
+              <td class="muted">{{ order.customer_name or '–' }}</td>
+              <td>{{ badge(order.status) }}</td>
+              <td class="num strong">{{ order.price|money }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {{ empty('orders', 'Noch keine Aufträge', 'Lege deinen ersten Auftrag an – die Kalkulation macht den Rest.') }}
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="side-stack">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('clock') }} Bald fällig</div>
+      </div>
+      <div class="card-body tight">
+        {% if upcoming %}
+        <div class="list">
+          {% for order in upcoming %}
+          {% set remaining = days_until(order.due_date) %}
+          <a class="list-item" href="/orders/{{ order.id }}">
+            <div class="list-body">
+              <div class="list-title">{{ order.model }}</div>
+              <div class="list-meta">{{ order.customer_name or '–' }}</div>
+            </div>
+            <div class="list-value">
+              {{ order.due_date|date }}
+              <small style="color:{{ '#b91c1c' if remaining is not none and remaining < 0 else 'var(--muted)' }}">
+                {% if remaining is none %}–
+                {% elif remaining < 0 %}{{ -remaining }} Tage überfällig
+                {% elif remaining == 0 %}heute
+                {% else %}in {{ remaining }} Tagen{% endif %}
+              </small>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+          {{ empty('check', 'Keine Fristen in den nächsten 14 Tagen.') }}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('customers') }} Top-Kunden</div>
+      </div>
+      <div class="card-body tight">
+        {% if top_customers %}
+        <div class="list">
+          {% for customer in top_customers %}
+          <a class="list-item" href="/customers/{{ customer.id }}">
+            <div class="list-body">
+              <div class="list-title">{{ customer.name }}</div>
+              <div class="list-meta">{{ customer.order_count }} {{ 'Auftrag' if customer.order_count == 1 else 'Aufträge' }}</div>
+            </div>
+            <div class="list-value">{{ customer.revenue|money }}</div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+          {{ empty('customers', 'Noch keine Kundendaten.') }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

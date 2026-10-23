@@ -1,0 +1,28 @@
+{% macro icon(name, extra='') -%}
+<svg class="icon {{ extra }}" viewBox="0 0 24 24" aria-hidden="true"><use href="/static/icons.svg#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="_csrf" value="{{ csrf_token }}">
+{%- endmacro %}
+
+{% macro badge(status) -%}
+{% set info = status_info(status) %}
+<span class="badge badge-{{ info.tone }} badge-dot">{{ info.label }}</span>
+{%- endmacro %}
+
+{% macro paid_badge(paid) -%}
+{% if paid %}<span class="badge badge-green">Bezahlt</span>{% else %}<span class="badge badge-outline">Offen</span>{% endif %}
+{%- endmacro %}
+
+{% macro empty(icon_name, title, text='') -%}
+<div class="empty">
+  {{ icon(icon_name) }}
+  <strong>{{ title }}</strong>
+  {% if text %}<p>{{ text }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro field_label(text, required=false) -%}
+<label>{{ text }}{% if required %} <span class="req">*</span>{% endif %}</label>
+{%- endmacro %}

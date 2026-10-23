@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="{{ '/customers/' ~ customer.id if customer else '/customers' }}">{{ icon('arrow-left') }}<span>Zurück</span></a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:820px">
+  <form class="card" method="post" action="{{ '/customers/' ~ customer.id if customer else '/customers' }}">
+    {{ csrf() }}
+
+    <div class="form-section">
+      <div class="form-section-title">Kontakt</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Name <span class="req">*</span></label>
+          <input name="name" value="{{ customer.name if customer else '' }}" placeholder="Vor- und Nachname" required maxlength="120" autofocus>
+        </div>
+        <div class="field">
+          <label>Firma (optional)</label>
+          <input name="company" value="{{ customer.company if customer and customer.company else '' }}" placeholder="Firmenname" maxlength="120">
+        </div>
+        <div class="field">
+          <label>E-Mail</label>
+          <input name="email" type="email" value="{{ customer.email if customer and customer.email else '' }}" placeholder="kunde@example.de">
+        </div>
+        <div class="field">
+          <label>Telefon</label>
+          <input name="phone" value="{{ customer.phone if customer and customer.phone else '' }}" placeholder="+49 …">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Adresse</div>
+      <div class="form-grid cols-3">
+        <div class="field span-2">
+          <label>Straße</label>
+          <input name="street" value="{{ customer.street if customer and customer.street else '' }}" placeholder="Musterstraße" maxlength="120">
+        </div>
+        <div class="field">
+          <label>Hausnummer</label>
+          <input name="house_number" value="{{ customer.house_number if customer and customer.house_number else '' }}" placeholder="12a" maxlength="20">
+        </div>
+        <div class="field">
+          <label>PLZ</label>
+          <input name="zip" value="{{ customer.zip if customer and customer.zip else '' }}" placeholder="12345" maxlength="12">
+        </div>
+        <div class="field span-2">
+          <label>Ort</label>
+          <input name="city" value="{{ customer.city if customer and customer.city else '' }}" placeholder="Musterstadt" maxlength="120">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Notizen</div>
+      <div class="field">
+        <textarea name="notes" placeholder="Besonderheiten, Lieferhinweise, Ansprechpartner …">{{ customer.notes if customer and customer.notes else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a class="btn btn-ghost" href="{{ '/customers/' ~ customer.id if customer else '/customers' }}">Abbrechen</a>
+      <button class="btn btn-primary" type="submit">{{ icon('check') }} {{ 'Änderungen speichern' if customer else 'Kunde anlegen' }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

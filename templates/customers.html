@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/export/customers.csv">{{ icon('download') }}<span>CSV</span></a>
+  <a class="btn btn-primary" href="/customers/new">{{ icon('user-plus') }}<span>Neuer Kunde</span></a>
+{% endblock %}
+
+{% block content %}
+<form class="page-toolbar" method="get" action="/customers">
+  <div class="search-form">
+    <input name="q" value="{{ q }}" placeholder="Name, Firma, Ort oder E-Mail suchen…" aria-label="Kunden suchen">
+    <button class="btn btn-ghost" type="submit">{{ icon('search') }}<span>Suchen</span></button>
+  </div>
+  {% if q %}
+  <a class="btn btn-ghost btn-sm" href="/customers">Filter löschen</a>
+  {% endif %}
+  <div class="toolbar-right small muted">{{ customers|length }} {{ 'Kunde' if customers|length == 1 else 'Kunden' }}</div>
+</form>
+
+<section class="card">
+  <div class="card-body tight">
+    {% if customers %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Kunde</th>
+            <th>Kontakt</th>
+            <th>Ort</th>
+            <th class="num">Aufträge</th>
+            <th class="num">Umsatz</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for customer in customers %}
+          <tr>
+            <td>
+              <a class="cell-person" href="/customers/{{ customer.id }}">
+                <span class="avatar">{{ customer.name[:2]|upper }}</span>
+                <span class="cell-stack">
+                  <span class="table-title">{{ customer.name }}</span>
+                  {% if customer.company %}<small>{{ customer.company }}</small>{% endif %}
+                </span>
+              </a>
+            </td>
+            <td>
+              <div class="cell-stack">
+                {% if customer.email %}<span>{{ customer.email }}</span>{% endif %}
+                {% if customer.phone %}<small>{{ customer.phone }}</small>{% endif %}
+                {% if not customer.email and not customer.phone %}<span class="muted">–</span>{% endif %}
+              </div>
+            </td>
+            <td class="muted">{{ customer.city or '–' }}</td>
+            <td class="num">
+              {{ customer.order_count }}
+              {% if customer.open_count %}<div class="tiny" style="color:#b45309">{{ customer.open_count }} offen</div>{% endif %}
+            </td>
+            <td class="num strong">{{ customer.revenue|money }}</td>
+            <td class="num">
+              <a class="btn btn-ghost btn-sm" href="/customers/{{ customer.id }}">Profil {{ icon('arrow-right', 'icon-sm') }}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {{ empty('customers', 'Keine Kunden gefunden', 'Lege deinen ersten Kunden an, um Aufträge zu erfassen.') }}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

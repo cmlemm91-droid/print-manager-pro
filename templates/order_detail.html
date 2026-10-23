@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, badge, paid_badge, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/orders">{{ icon('arrow-left') }}<span>Aufträge</span></a>
+  <a class="btn btn-ghost" href="/orders/{{ order.id }}/edit">{{ icon('edit') }}<span>Bearbeiten</span></a>
+  {% if order.status != 'storniert' %}
+  <a class="btn btn-primary" href="/orders/{{ order.id }}/invoice" target="_blank" rel="noopener">
+    {{ icon('invoices') }}<span>Rechnung</span>
+  </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+{% set flow = ['angebot', 'bestaetigt', 'druck', 'fertig', 'geliefert'] %}
+{% set current_index = flow.index(order.status) if order.status in flow else -1 %}
+
+<section class="card" style="margin-bottom:18px">
+  <div class="card-body">
+    <div class="row-between" style="margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div class="actions-row">
+        {{ badge(order.status) }}
+        {{ paid_badge(order.paid) }}
+        {% if order.price_override %}<span class="badge badge-outline">Preis manuell</span>{% endif %}
+        {% if order.priority != 'normal' %}
+          <span class="badge badge-outline">Priorität: {{ PRIORITIES.get(order.priority, order.priority) }}</span>
+        {% endif %}
+      </div>
+      <div class="small muted">
+        Angelegt am {{ order.created_at|datetime }}{% if order.due_date %} · fällig {{ order.due_date|date }}{% endif %}
+      </div>
+    </div>
+
+    {% if order.status == 'storniert' %}
+      <div class="notice danger">{{ icon('alert') }}<div>Dieser Auftrag wurde storniert. Das Material wurde dem Lager wieder gutgeschrieben.</div></div>
+    {% else %}
+    <div class="steps">
+      {% for key in flow %}
+      {% set index = loop.index0 %}
+      <div class="step {{ 'done' if index < current_index else ('current' if index == current_index else '') }}">
+        <span class="step-dot">{{ icon('check', 'icon-sm') if index < current_index else loop.index }}</span>
+        <span class="step-label">{{ STATUS[key].label }}</span>
+        {% if not loop.last %}<span class="step-line"></span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="detail-grid">
+  <div class="side-stack">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('orders') }} Auftragsdaten</div>
+        <span class="mono muted">{{ order.order_number or ('#' ~ order.id) }}</span>
+      </div>
+      <div class="card-body">
+        <dl class="detail-list">
+          <div class="detail-item">
+            <dt>Kunde</dt>
+            <dd class="big">
+              {% if customer %}<a href="/customers/{{ customer.id }}" style="color:var(--brand)">{{ customer.name }}</a>
+              {% else %}–{% endif %}
+            </dd>
+          </div>
+          <div class="detail-item">
+            <dt>Modell</dt>
+            <dd class="big">{{ order.model }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Menge</dt>
+            <dd>{{ order.quantity }} {{ 'Stück' if order.quantity != 1 else 'Stück' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Priorität</dt>
+            <dd>{{ PRIORITIES.get(order.priority, order.priority) }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Material</dt>
+            <dd>{% if order.material %}{{ order.material }} · {{ order.color }}{% else %}<span class="muted">gelöscht</span>{% endif %}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Drucker</dt>
+            <dd>{{ order.printer_name or '–' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Materialverbrauch</dt>
+            <dd>{{ order.weight_used|num1 }} g</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Druckzeit</dt>
+            <dd>{{ order.duration_hours|num1 }} Std.</dd>
+          </div>
+          <div class="detail-item">
+            <dt>CAD-Zeit</dt>
+            <dd>{{ order.cad_hours|num1 }} Std.</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Fällig am</dt>
+            <dd {% if is_overdue(order) %}style="color:#b91c1c;font-weight:700"{% endif %}>
+              {{ order.due_date|date }}
+              {% if is_overdue(order) %}<span class="badge badge-red" style="margin-left:6px">überfällig</span>{% endif %}
+            </dd>
+          </div>
+          {% if order.notes %}
+          <div class="detail-item full">
+            <dt>Notizen</dt>
+            <dd><div class="note-box">{{ order.notes }}</div></dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('chart') }} Interne Kalkulation</div>
+        <span class="badge badge-outline">nur intern</span>
+      </div>
+      <div class="card-body">
+        <div class="summary-row"><span>Material ({{ order.weight_used|num1 }} g)</span><strong>{{ order.material_cost|money }}</strong></div>
+        <div class="summary-row"><span>Maschinenzeit ({{ order.duration_hours|num1 }} h)</span><strong>{{ order.machine_cost|money }}</strong></div>
+        <div class="summary-row"><span>CAD / Design ({{ order.cad_hours|num1 }} h)</span><strong>{{ order.cad_cost|money }}</strong></div>
+        <div class="summary-row"><span>Strom</span><strong>{{ order.energy_cost|money }}</strong></div>
+        <div class="summary-row"><span>{{ order.extra_label or 'Zusatzkosten' }}</span><strong>{{ order.extra_cost|money }}</strong></div>
+        <div class="summary-divider"></div>
+        <div class="summary-row"><span>Selbstkosten</span><strong>{{ order.cost_total|money }}</strong></div>
+        <div class="summary-row"><span>Marge ({{ order.margin_percent|num }} %)</span><strong style="color:var(--green)">{{ totals.profit|money }}</strong></div>
+        <div class="summary-divider"></div>
+        <div class="summary-row"><span>Verkaufspreis netto</span><strong>{{ totals.net|money }}</strong></div>
+        {% if not totals.small_business %}
+        <div class="summary-row"><span>Umsatzsteuer {{ totals.vat_rate|num }} %</span><strong>{{ totals.vat|money }}</strong></div>
+        {% else %}
+        <div class="summary-row"><span>Umsatzsteuer</span><strong>Kleinunternehmer</strong></div>
+        {% endif %}
+        <div class="summary-total">
+          <span>Gesamt brutto</span>
+          <strong>{{ totals.gross|money }}</strong>
+        </div>
+        <div class="summary-note">Gewinn = Verkaufspreis netto − Selbstkosten.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('inventory') }} Lagerbewegungen</div>
+        <a class="btn btn-ghost btn-sm" href="/inventory">Lager</a>
+      </div>
+      <div class="card-body tight">
+        {% if movements %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Datum</th><th>Material</th><th>Grund</th><th class="num">Menge</th></tr></thead>
+            <tbody>
+              {% for movement in movements %}
+              <tr>
+                <td class="muted">{{ movement.created_at|datetime }}</td>
+                <td>{{ movement.material or '–' }}{% if movement.color %} · {{ movement.color }}{% endif %}</td>
+                <td class="muted">{{ movement.reason }}</td>
+                <td class="num" style="color:{{ '#047857' if movement.change_g > 0 else '#b91c1c' }};font-weight:700">
+                  {{ '+' if movement.change_g > 0 else '' }}{{ movement.change_g|num1 }} g
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          {{ empty('inventory', 'Noch keine Lagerbewegungen', 'Beim Druckstart wird Material automatisch abgebucht.') }}
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="side-stack">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('refresh') }} Status &amp; Aktionen</div>
+      </div>
+      <div class="card-body">
+        <div class="stack-sm">
+          {% if next_status %}
+          <form method="post" action="/orders/{{ order.id }}/status">
+            {{ csrf() }}
+            <input type="hidden" name="status" value="{{ next_status }}">
+            <button class="btn btn-primary btn-block" type="submit">
+              {{ icon('arrow-right') }} {{ status_info(order.status).next_label }}
+            </button>
+          </form>
+          {% endif %}
+
+          <form method="post" action="/orders/{{ order.id }}/status" class="stack-sm">
+            {{ csrf() }}
+            <label class="tiny muted" style="font-weight:600">Status manuell ändern</label>
+            <div class="inline-form" style="width:100%">
+              <select name="status" style="flex:1">
+                {% for key in STATUS_ORDER %}
+                <option value="{{ key }}" {{ 'selected' if key == order.status else '' }}>{{ STATUS[key].label }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-ghost" type="submit">Setzen</button>
+            </div>
+          </form>
+
+          <div class="divider"></div>
+
+          <form method="post" action="/orders/{{ order.id }}/paid">
+            {{ csrf() }}
+            {% if order.paid %}
+            <button class="btn btn-ghost btn-block" type="submit">{{ icon('refresh') }} Zahlung zurücksetzen</button>
+            {% else %}
+            <button class="btn btn-success btn-block" type="submit">{{ icon('check') }} Als bezahlt markieren</button>
+            {% endif %}
+          </form>
+
+          <div class="divider"></div>
+
+          {% if order.invoice_number %}
+          <div class="row-between">
+            <div>
+              <div class="tiny muted">Rechnung</div>
+              <div class="mono">{{ order.invoice_number }}</div>
+            </div>
+            <a class="btn btn-soft btn-sm" href="/orders/{{ order.id }}/invoice?download=1">{{ icon('download') }} PDF</a>
+          </div>
+          {% else %}
+          <a class="btn btn-soft btn-block" href="/orders/{{ order.id }}/invoice" target="_blank" rel="noopener">
+            {{ icon('invoices') }} Rechnung erstellen
+          </a>
+          <div class="tiny muted">Die Rechnungsnummer wird beim ersten Öffnen vergeben.</div>
+          {% endif %}
+
+          <div class="divider"></div>
+
+          <form method="post" action="/orders/{{ order.id }}/duplicate">
+            {{ csrf() }}
+            <button class="btn btn-ghost btn-block" type="submit">{{ icon('duplicate') }} Auftrag duplizieren</button>
+          </form>
+
+          {% if order.status != 'storniert' %}
+          <form method="post" action="/orders/{{ order.id }}/status" data-confirm="Auftrag wirklich stornieren? Das Material wird dem Lager gutgeschrieben.">
+            {{ csrf() }}
+            <input type="hidden" name="status" value="storniert">
+            <button class="btn btn-ghost btn-block" type="submit" style="color:var(--amber)">{{ icon('close') }} Stornieren</button>
+          </form>
+          {% endif %}
+
+          <form method="post" action="/orders/{{ order.id }}/delete" data-confirm="Auftrag endgültig löschen? Das kann nicht rückgängig gemacht werden.">
+            {{ csrf() }}
+            <button class="btn btn-danger btn-block" type="submit">{{ icon('trash') }} Auftrag löschen</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    {% if customer %}
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('customers') }} Kunde</div>
+        <a class="btn btn-ghost btn-sm" href="/customers/{{ customer.id }}">Profil</a>
+      </div>
+      <div class="card-body">
+        <div class="profile-head" style="margin-bottom:12px">
+          <div class="avatar lg">{{ customer.name[:2]|upper }}</div>
+          <div>
+            <h2 style="font-size:16px">{{ customer.name }}</h2>
+            {% if customer.company %}<p>{{ customer.company }}</p>{% endif %}
+          </div>
+        </div>
+        {% if customer.email %}
+        <a class="contact-row" href="mailto:{{ customer.email }}">{{ icon('invoices') }} {{ customer.email }}</a>
+        {% endif %}
+        {% if customer.phone %}
+        <a class="contact-row" href="tel:{{ customer.phone }}">{{ icon('customers') }} {{ customer.phone }}</a>
+        {% endif %}
+        <div class="contact-row">{{ icon('inventory') }}
+          <span>{{ customer.street or '' }} {{ customer.house_number or '' }}<br>{{ customer.zip or '' }} {{ customer.city or '' }}</span>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">{{ icon('clock') }} Zeitverlauf</div>
+      </div>
+      <div class="card-body">
+        <div class="stack-sm">
+          <div class="row-between small"><span class="muted">Angelegt</span><span>{{ order.created_at|datetime }}</span></div>
+          <div class="row-between small"><span class="muted">Druckstart</span><span>{{ order.started_at|datetime }}</span></div>
+          <div class="row-between small"><span class="muted">Druck fertig</span><span>{{ order.completed_at|datetime }}</span></div>
+          <div class="row-between small"><span class="muted">Geliefert</span><span>{{ order.delivered_at|datetime }}</span></div>
+          <div class="row-between small"><span class="muted">Bezahlt am</span><span>{{ order.paid_at|datetime }}</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

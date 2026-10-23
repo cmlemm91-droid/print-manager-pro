@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/inventory#material-form">{{ icon('plus') }}<span>Material</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:18px">
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Materialien</span><span class="kpi-icon tone-blue">{{ icon('inventory') }}</span></div>
+    <div class="kpi-value">{{ inventory|length }}</div>
+    <div class="kpi-sub">verschiedene Rollen</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Lagerwert</span><span class="kpi-icon tone-green">{{ icon('money') }}</span></div>
+    <div class="kpi-value">{{ stock_value|money }}</div>
+    <div class="kpi-sub">nach Einkaufspreis</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Warnungen</span><span class="kpi-icon {{ 'tone-red' if low else 'tone-slate' }}">{{ icon('alert') }}</span></div>
+    <div class="kpi-value">{{ low|length }}</div>
+    <div class="kpi-sub">unter Mindestbestand</div>
+  </div>
+</div>
+
+<div class="order-layout">
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('inventory') }} Bestände</div>
+      <span class="card-sub">{{ inventory|length }} Materialien</span>
+    </div>
+    <div class="card-body tight">
+      {% if inventory %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Bestand</th>
+              <th class="num">Preis / kg</th>
+              <th class="num">Wert</th>
+              <th>Wareneingang</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in inventory %}
+            {% set threshold = item.min_weight or 200 %}
+            {% set ratio = (item.weight / (threshold * 2) * 100) if threshold else 100 %}
+            {% set state = 'low' if item.weight < threshold else ('warn' if item.weight < threshold * 2 else '') %}
+            <tr>
+              <td>
+                <div class="cell-person">
+                  <span class="color-dot" style="background: {{ item.color|color }};width:14px;height:14px"></span>
+                  <div class="cell-stack">
+                    <span class="table-title">{{ item.material }}</span>
+                    <small>{{ item.color }}{% if item.supplier %} · {{ item.supplier }}{% endif %}</small>
+                  </div>
+                </div>
+              </td>
+              <td style="min-width:130px">
+                <div class="row-between" style="gap:8px">
+                  <span class="inv-amount {{ 'low' if state == 'low' else '' }}" style="font-size:14px">{{ item.weight|num1 }} g</span>
+                  <span class="tiny muted">min. {{ threshold|num1 }} g</span>
+                </div>
+                <div class="progress" style="margin-top:5px">
+                  <span class="{{ state }}" style="width: {{ [ratio, 100]|min }}%"></span>
+                </div>
+              </td>
+              <td class="num">{{ item.price_per_kg|money }}</td>
+              <td class="num muted">{{ ((item.weight or 0) / 1000 * (item.price_per_kg or 0))|money }}</td>
+              <td>
+                <form class="restock-form" method="post" action="/inventory/{{ item.id }}/stock">
+                  {{ csrf() }}
+                  <input name="amount" type="number" min="1" step="1" placeholder="+ g" required style="width:80px">
+                  <button class="btn btn-ghost btn-sm" type="submit" title="Wareneingang buchen">{{ icon('plus') }}</button>
+                </form>
+              </td>
+              <td class="num">
+                <div class="actions-row" style="justify-content:flex-end">
+                  <a class="btn btn-ghost btn-sm" href="/inventory?edit={{ item.id }}#material-form" title="Bearbeiten">{{ icon('edit') }}</a>
+                  <form method="post" action="/inventory/{{ item.id }}/delete" data-confirm="Material wirklich löschen?">
+                    {{ csrf() }}
+                    <button class="btn btn-danger btn-sm" type="submit" title="Löschen">{{ icon('trash') }}</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        {{ empty('inventory', 'Noch kein Material', 'Lege dein erstes Filament an, um Bestände zu verwalten.') }}
+      {% endif %}
+    </div>
+  </section>
+
+  <aside class="card" id="material-form">
+    <div class="card-head">
+      <div class="card-title">{{ icon('edit' if edit_item else 'plus') }} {{ 'Material bearbeiten' if edit_item else 'Material anlegen' }}</div>
+      {% if edit_item %}<a class="btn btn-ghost btn-sm" href="/inventory#material-form">{{ icon('close') }}</a>{% endif %}
+    </div>
+    <form method="post" action="{{ '/inventory/' ~ edit_item.id if edit_item else '/inventory' }}">
+      {{ csrf() }}
+      <div class="card-body stack">
+        <div class="field">
+          <label>Material <span class="req">*</span></label>
+          <input name="material" value="{{ edit_item.material if edit_item else '' }}" placeholder="PLA, PETG, ASA …" required>
+        </div>
+        <div class="field">
+          <label>Farbe <span class="req">*</span></label>
+          <input name="color" value="{{ edit_item.color if edit_item else '' }}" placeholder="z. B. Schwarz" required>
+        </div>
+        <div class="form-grid cols-2">
+          <div class="field">
+            <label>Bestand (g)</label>
+            <input name="weight" type="number" min="0" step="0.1" value="{{ edit_item.weight if edit_item else '' }}" placeholder="1000">
+          </div>
+          <div class="field">
+            <label>Preis / kg (€)</label>
+            <input name="price_per_kg" type="number" min="0" step="0.01" value="{{ edit_item.price_per_kg if edit_item else '' }}" placeholder="22.90">
+          </div>
+          <div class="field">
+            <label>Warnschwelle (g)</label>
+            <input name="min_weight" type="number" min="0" step="1" value="{{ edit_item.min_weight if edit_item else 200 }}" placeholder="200">
+          </div>
+          <div class="field">
+            <label>Lieferant</label>
+            <input name="supplier" value="{{ edit_item.supplier if edit_item and edit_item.supplier else '' }}" placeholder="optional">
+          </div>
+        </div>
+        <div class="field">
+          <label>Notizen</label>
+          <textarea name="notes" placeholder="Eigenschaften, Trocknung, Chargen …">{{ edit_item.notes if edit_item and edit_item.notes else '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        {% if edit_item %}<a class="btn btn-ghost" href="/inventory#material-form">Abbrechen</a>{% endif %}
+        <button class="btn btn-primary" type="submit">{{ icon('check') }} {{ 'Speichern' if edit_item else 'Material anlegen' }}</button>
+      </div>
+    </form>
+    <div class="card-foot">
+      <div class="notice" style="background:#fff;border:none;padding:0;color:var(--muted)">
+        {{ icon('alert') }}
+        <span>Der Verbrauch wird beim Druckstart automatisch abgebucht – nicht schon beim Anlegen des Auftrags.</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<section class="card" style="margin-top:18px">
+  <div class="card-head">
+    <div class="card-title">{{ icon('refresh') }} Lagerbewegungen</div>
+    <span class="card-sub">letzte 40 Buchungen</span>
+  </div>
+  <div class="card-body tight">
+    {% if movements %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Datum</th><th>Material</th><th>Grund</th><th class="num">Menge</th></tr></thead>
+        <tbody>
+          {% for movement in movements %}
+          <tr>
+            <td class="muted">{{ movement.created_at|datetime }}</td>
+            <td>{{ movement.material or '–' }}{% if movement.color %} · {{ movement.color }}{% endif %}</td>
+            <td class="muted">{{ movement.reason }}</td>
+            <td class="num" style="color:{{ '#047857' if movement.change_g > 0 else '#b91c1c' }};font-weight:700">
+              {{ '+' if movement.change_g > 0 else '' }}{{ movement.change_g|num1 }} g
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {{ empty('refresh', 'Noch keine Buchungen', 'Wareneingänge und Materialverbrauch erscheinen hier.') }}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

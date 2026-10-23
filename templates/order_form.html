@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="{{ '/orders/' ~ order.id if order else '/orders' }}">{{ icon('arrow-left') }}<span>Zurück</span></a>
+{% endblock %}
+
+{% block content %}
+{% set selected_customer = order.customer_id if order else default_customer %}
+{% set selected_material = order.material_id if order else 0 %}
+{% set selected_printer = order.printer_id if order else 0 %}
+{% set due_default = (order.due_date|date_value) if order else default_due %}
+
+{% if not customers or not materials or not printers %}
+<div class="notice warn" style="margin-bottom:16px">
+  {{ icon('alert') }}
+  <div>
+    <strong>Es fehlen noch Stammdaten.</strong>
+    {% if not customers %}<a href="/customers/new" style="text-decoration:underline">Kunde anlegen</a>{% endif %}
+    {% if not materials %}{% if not customers %} · {% endif %}<a href="/inventory" style="text-decoration:underline">Material anlegen</a>{% endif %}
+    {% if not printers %}{% if not customers or not materials %} · {% endif %}<a href="/printers" style="text-decoration:underline">Drucker anlegen</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="order-layout">
+  <form id="order-form" class="card" method="post" action="{{ '/orders/' ~ order.id if order else '/orders' }}">
+    {{ csrf() }}
+
+    <div class="form-section">
+      <div class="form-section-title">Auftrag</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Kunde <span class="req">*</span></label>
+          <select name="customer_id" required>
+            <option value="">Kunde wählen…</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" {{ 'selected' if c.id == selected_customer else '' }}>
+              {{ c.name }}{% if c.company %} · {{ c.company }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="hint">Noch nicht vorhanden? <a href="/customers/new" style="color:var(--brand)">Kunde anlegen</a></span>
+        </div>
+
+        <div class="field">
+          <label>Modell / Teilebezeichnung <span class="req">*</span></label>
+          <input name="model" value="{{ order.model if order else '' }}" placeholder="z. B. Gehäuse links, Prototyp V2" required maxlength="160">
+        </div>
+
+        <div class="field">
+          <label>Menge (Stück)</label>
+          <input name="quantity" type="number" min="1" max="1000" step="1" value="{{ order.quantity if order else 1 }}">
+        </div>
+
+        <div class="field">
+          <label>Fällig am</label>
+          <input name="due_date" type="date" value="{{ due_default }}">
+        </div>
+
+        {% if order %}
+        <div class="field">
+          <label>Status</label>
+          <div style="padding-top:6px">
+            <span class="badge badge-{{ status_info(order.status).tone }} badge-dot">{{ status_info(order.status).label }}</span>
+            <span class="hint">Status wird über die Auftragsseite geändert.</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="field">
+          <label>Startstatus</label>
+          <select name="status">
+            <option value="angebot">Angebot</option>
+            <option value="bestaetigt">Bestätigt</option>
+            <option value="druck">Direkt in den Druck</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="field">
+          <label>Priorität</label>
+          <select name="priority">
+            {% for key, label in PRIORITIES.items() %}
+            <option value="{{ key }}" {{ 'selected' if (order.priority if order else 'normal') == key else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Druckdaten</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Material <span class="req">*</span></label>
+          <select name="material_id" required>
+            <option value="">Material wählen…</option>
+            {% for m in materials %}
+            <option value="{{ m.id }}" {{ 'selected' if m.id == selected_material else '' }}>
+              {{ m.material }} · {{ m.color }} ({{ m.weight|num1 }} g vorrätig)
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Drucker <span class="req">*</span></label>
+          <select name="printer_id" required>
+            <option value="">Drucker wählen…</option>
+            {% for p in printers %}
+            <option value="{{ p.id }}" {{ 'selected' if p.id == selected_printer else '' }}>
+              {{ p.name }}{% if not p.active %} (inaktiv){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Materialverbrauch gesamt (g)</label>
+          <input name="weight_used" type="number" min="0" step="0.1" value="{{ order.weight_used if order else '' }}" placeholder="z. B. 125" required>
+          <span class="hint">Gesamtmenge für alle Stücke inkl. Stützen und Purge.</span>
+        </div>
+
+        <div class="field">
+          <label>Druckzeit gesamt (Std.)</label>
+          <input name="duration_hours" type="number" min="0" step="0.1" value="{{ order.duration_hours if order else '' }}" placeholder="z. B. 4.5" required>
+        </div>
+
+        <div class="field">
+          <label>CAD-/Designzeit (Std.)</label>
+          <input name="cad_hours" type="number" min="0" step="0.1" value="{{ order.cad_hours if order else 0 }}" placeholder="0">
+        </div>
+
+        <div class="field">
+          <label>Zusatzkosten (€)</label>
+          <input name="extra_cost" type="number" min="0" step="0.01" value="{{ order.extra_cost if order else 0 }}" placeholder="0.00">
+          <span class="hint">z. B. Versand, Nachbearbeitung, Fremdleistung.</span>
+        </div>
+
+        <div class="field">
+          <label>Bezeichnung der Zusatzkosten</label>
+          <input name="extra_label" value="{{ order.extra_label if order else 'Sonstiges' }}" maxlength="60">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Preis &amp; Marge</div>
+      <div class="form-grid cols-2">
+        <div class="field">
+          <label>Marge (%)</label>
+          <input name="margin_percent" type="number" min="0" step="1" value="{{ order.margin_percent if order else default_margin }}">
+          <span class="hint">Aufschlag auf die Selbstkosten. Standard aus den Einstellungen.</span>
+        </div>
+
+        <div class="field">
+          <label>Verkaufspreis netto (€)</label>
+          <div class="check-row" style="margin-bottom:6px">
+            <input type="checkbox" id="price_override" name="price_override" value="1" {{ 'checked' if order and order.price_override else '' }}>
+            <label for="price_override">Preis manuell festlegen
+              <span class="hint">Ohne Häkchen wird der Preis aus Marge und Kosten berechnet.</span>
+            </label>
+          </div>
+          <input name="price" type="number" min="0" step="0.01" value="{{ order.price if order else '' }}" placeholder="wird automatisch berechnet" {{ 'readonly' if not (order and order.price_override) else '' }}>
+        </div>
+
+        <div class="field span-2">
+          <label>Notizen zum Auftrag</label>
+          <textarea name="notes" placeholder="Sonderwünsche, Datei-Link, Farbe, Nachbearbeitung …">{{ order.notes if order and order.notes else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a class="btn btn-ghost" href="{{ '/orders/' ~ order.id if order else '/orders' }}">Abbrechen</a>
+      <button class="btn btn-primary" type="submit">
+        {{ icon('check') }} {{ 'Änderungen speichern' if order else 'Auftrag anlegen' }}
+      </button>
+    </div>
+  </form>
+
+  <aside class="card summary-card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('chart') }} Kalkulation</div>
+      <span class="margin-pill"><span id="calc-margin">0,00 %</span> Marge</span>
+    </div>
+    <div class="card-body">
+      <div class="summary-row"><span>Material</span><strong id="calc-material">0,00 €</strong></div>
+      <div class="summary-row"><span>Maschinenzeit</span><strong id="calc-machine">0,00 €</strong></div>
+      <div class="summary-row"><span>CAD / Design</span><strong id="calc-cad">0,00 €</strong></div>
+      <div class="summary-row"><span>Strom</span><strong id="calc-energy">0,00 €</strong></div>
+      <div class="summary-row"><span id="calc-extra-label">Zusatzkosten</span><strong id="calc-extra">0,00 €</strong></div>
+      <div class="summary-divider"></div>
+      <div class="summary-row"><span>Selbstkosten</span><strong id="calc-cost">0,00 €</strong></div>
+      <div class="summary-row discount"><span>Gewinn</span><strong id="calc-profit" style="color:var(--green)">0,00 €</strong></div>
+
+      <div class="summary-divider"></div>
+      <div class="summary-total">
+        <span>Verkaufspreis netto</span>
+        <strong id="calc-price">0,00 €</strong>
+      </div>
+
+      <div class="summary-row" id="calc-vat-row" style="margin-top:2px">
+        <span id="calc-vat-label">USt. 19 %</span>
+        <strong id="calc-vat">0,00 €</strong>
+      </div>
+      <div class="summary-extra">
+        <span>Gesamt brutto</span>
+        <b id="calc-gross">0,00 €</b>
+      </div>
+
+      <div class="summary-note">
+        Die Kalkulation ist eine interne Vorschau. Beim Speichern werden die Werte serverseitig neu berechnet.
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script type="application/json" id="calc-data">{{ calc_json|safe }}</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, badge, paid_badge, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/export/orders.csv">{{ icon('download') }}<span>CSV</span></a>
+  <a class="btn btn-primary" href="/orders/new">{{ icon('plus') }}<span>Neuer Auftrag</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="chips" style="margin-bottom:16px">
+  <a class="chip {{ 'active' if status_filter == 'all' else '' }}" href="/orders?status=all">Alle <span class="chip-count">{{ total }}</span></a>
+  <a class="chip {{ 'active' if status_filter == 'open' else '' }}" href="/orders?status=open">Offen <span class="chip-count">{{ open_total }}</span></a>
+  {% for key in STATUS_ORDER %}
+  <a class="chip {{ 'active' if status_filter == key else '' }}" href="/orders?status={{ key }}">
+    {{ STATUS[key].label }} <span class="chip-count">{{ counts.get(key, 0) }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<form class="page-toolbar" method="get" action="/orders">
+  <input type="hidden" name="status" value="{{ status_filter }}">
+  <div class="search-form">
+    <input name="q" value="{{ q }}" placeholder="Auftrag, Modell oder Kunde suchen…" aria-label="Suchen">
+    <button class="btn btn-ghost" type="submit">{{ icon('search') }}<span>Suchen</span></button>
+  </div>
+  <div class="toolbar-right">
+    <select name="sort" class="select-compact" data-autosubmit aria-label="Sortierung">
+      <option value="neu" {{ 'selected' if sort == 'neu' else '' }}>Neueste zuerst</option>
+      <option value="alt" {{ 'selected' if sort == 'alt' else '' }}>Älteste zuerst</option>
+      <option value="faellig" {{ 'selected' if sort == 'faellig' else '' }}>Nach Fälligkeit</option>
+      <option value="preis" {{ 'selected' if sort == 'preis' else '' }}>Höchster Preis</option>
+      <option value="nummer" {{ 'selected' if sort == 'nummer' else '' }}>Auftragsnummer</option>
+    </select>
+    {% if q %}<a class="btn btn-ghost btn-sm" href="/orders?status={{ status_filter }}">Filter löschen</a>{% endif %}
+  </div>
+</form>
+
+<section class="card">
+  <div class="card-body tight">
+    {% if orders %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Auftrag</th>
+            <th>Kunde</th>
+            <th>Status</th>
+            <th>Fällig</th>
+            <th class="num">Preis netto</th>
+            <th>Zahlung</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td>
+              <a class="cell-stack" href="/orders/{{ order.id }}">
+                <span class="table-title">{{ order.order_number or ('#' ~ order.id) }}</span>
+                <small>{{ order.model }}{% if order.quantity and order.quantity > 1 %} · {{ order.quantity }} Stk{% endif %}</small>
+              </a>
+            </td>
+            <td>
+              <div class="cell-stack">
+                <span>{{ order.customer_name or '–' }}</span>
+                {% if order.customer_company %}<small>{{ order.customer_company }}</small>{% endif %}
+              </div>
+            </td>
+            <td>{{ badge(order.status) }}</td>
+            <td class="muted">
+              {% if order.due_date %}
+                {{ order.due_date|date }}
+                {% if is_overdue(order) %}<div><small style="color:#b91c1c;font-weight:600">überfällig</small></div>{% endif %}
+              {% else %}–{% endif %}
+            </td>
+            <td class="num strong">{{ order.price|money }}</td>
+            <td>
+              {% if order.status in ['fertig', 'geliefert'] %}
+                {{ paid_badge(order.paid) }}
+              {% else %}
+                <span class="muted tiny">–</span>
+              {% endif %}
+            </td>
+            <td class="num">
+              <a class="btn btn-ghost btn-sm" href="/orders/{{ order.id }}">Öffnen {{ icon('arrow-right', 'icon-sm') }}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {{ empty('orders', 'Keine Aufträge gefunden', 'Passe den Filter an oder lege einen neuen Auftrag an.') }}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

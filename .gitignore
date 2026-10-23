@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Datenbank und Sicherungen (enthalten Kundendaten!)
+*.db
+*.db-journal
+*.db-wal
+backups/
+
+# Hochgeladene Dateien (Logo)
+static/uploads/
+
+# Lokale Test- und Hilfsdateien
+test.db
+*.pdf
+_e2e_test.py
+_counter_test.py
+_inspect_db.py
+_pdf_check.py
+
+# Alte Templates (nur lokal als Referenz)
+legacy_templates/
+
+# Betriebssystem und Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.log

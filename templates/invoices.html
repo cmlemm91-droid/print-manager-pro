@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, paid_badge, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/export/orders.csv">{{ icon('download') }}<span>CSV</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid" style="margin-bottom:18px">
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Rechnungen</span><span class="kpi-icon tone-blue">{{ icon('invoices') }}</span></div>
+    <div class="kpi-value">{{ summary.count }}</div>
+    <div class="kpi-sub">gestellt</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Netto</span><span class="kpi-icon tone-slate">{{ icon('money') }}</span></div>
+    <div class="kpi-value small">{{ summary.net|money }}</div>
+    <div class="kpi-sub">ohne Umsatzsteuer</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Brutto</span><span class="kpi-icon tone-green">{{ icon('money') }}</span></div>
+    <div class="kpi-value small">{{ summary.gross|money }}</div>
+    <div class="kpi-sub">inklusive Umsatzsteuer</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Offen</span><span class="kpi-icon tone-red">{{ icon('card') }}</span></div>
+    <div class="kpi-value small">{{ summary.open|money }}</div>
+    <div class="kpi-sub">noch nicht bezahlt</div>
+  </div>
+</div>
+
+<section class="card">
+  <div class="card-head">
+    <div class="card-title">{{ icon('invoices') }} Alle Rechnungen</div>
+    <span class="card-sub">Nummern werden automatisch vergeben</span>
+  </div>
+  <div class="card-body tight">
+    {% if invoices %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Rechnung</th>
+            <th>Datum</th>
+            <th>Auftrag</th>
+            <th>Kunde</th>
+            <th class="num">Netto</th>
+            <th class="num">Brutto</th>
+            <th>Zahlung</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for invoice in invoices %}
+          <tr>
+            <td><span class="mono table-title">{{ invoice.invoice_number }}</span></td>
+            <td class="muted">{{ invoice.invoiced_at|date }}</td>
+            <td>
+              <a href="/orders/{{ invoice.id }}" style="color:var(--brand)">{{ invoice.order_number or ('#' ~ invoice.id) }}</a>
+              <div class="tiny muted">{{ invoice.model }}</div>
+            </td>
+            <td>{{ invoice.customer_name or '–' }}</td>
+            <td class="num">{{ invoice.price|money }}</td>
+            <td class="num strong">{{ invoice.totals.gross|money }}</td>
+            <td>{{ paid_badge(invoice.paid) }}</td>
+            <td class="num">
+              <div class="actions-row" style="justify-content:flex-end">
+                <a class="btn btn-ghost btn-sm" href="/orders/{{ invoice.id }}/invoice" target="_blank" rel="noopener">Ansehen</a>
+                <a class="btn btn-soft btn-sm" href="/orders/{{ invoice.id }}/invoice?download=1">{{ icon('download') }} PDF</a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {{ empty('invoices', 'Noch keine Rechnungen', 'Öffne einen abgeschlossenen Auftrag und erstelle die erste Rechnung.') }}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

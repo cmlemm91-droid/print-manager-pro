@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, empty with context %}
+
+{% block actions %}
+  <a class="btn btn-ghost" href="/printers#printer-form">{{ icon('plus') }}<span>Drucker</span></a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:18px">
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Drucker</span><span class="kpi-icon tone-blue">{{ icon('printers') }}</span></div>
+    <div class="kpi-value">{{ printers|length }}</div>
+    <div class="kpi-sub">{{ active_count }} aktiv</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Druckstunden</span><span class="kpi-icon tone-amber">{{ icon('clock') }}</span></div>
+    <div class="kpi-value">{{ total_hours|num1 }} h</div>
+    <div class="kpi-sub">in Produktion</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Umsatz</span><span class="kpi-icon tone-green">{{ icon('money') }}</span></div>
+    <div class="kpi-value">{{ total_revenue|money }}</div>
+    <div class="kpi-sub">abgeschlossene Aufträge</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-head"><span class="kpi-label">Im Druck</span><span class="kpi-icon tone-violet">{{ icon('printers') }}</span></div>
+    <div class="kpi-value">{{ active_jobs }}</div>
+    <div class="kpi-sub">laufende Aufträge</div>
+  </div>
+</div>
+
+<div class="order-layout">
+  <section class="card">
+    <div class="card-head">
+      <div class="card-title">{{ icon('printers') }} Maschinen</div>
+      <span class="card-sub">{{ printers|length }} konfiguriert</span>
+    </div>
+    <div class="card-body">
+      {% if printers %}
+      <div class="printer-grid">
+        {% for printer in printers %}
+        <div class="printer-card {{ 'inactive' if not printer.active else '' }}">
+          <div class="printer-head">
+            <span class="printer-icon">{{ icon('printers') }}</span>
+            <div style="flex:1;min-width:0">
+              <div class="row-between" style="gap:8px">
+                <strong style="font-size:14.5px">{{ printer.name }}</strong>
+                {% if printer.active %}
+                  <span class="badge badge-green badge-dot">Aktiv</span>
+                {% else %}
+                  <span class="badge badge-slate badge-dot">Inaktiv</span>
+                {% endif %}
+              </div>
+              <div class="tiny muted" style="margin-top:2px">
+                {{ printer.cost_per_hour|money }}/Std · {{ printer.power_watt|num0 }} W
+              </div>
+            </div>
+          </div>
+          <div class="printer-stats">
+            <div><b>{{ printer.order_count }}</b><small>Aufträge</small></div>
+            <div><b>{{ printer.hours|num1 }} h</b><small>Druckzeit</small></div>
+            <div><b>{{ printer.revenue|money }}</b><small>Umsatz</small></div>
+          </div>
+          <div class="actions-row" style="margin-top:12px;justify-content:flex-end">
+            {% if printer.active_jobs %}
+            <span class="badge badge-amber badge-dot">{{ printer.active_jobs }} im Druck</span>
+            {% endif %}
+            <a class="btn btn-ghost btn-sm" href="/printers?edit={{ printer.id }}#printer-form">{{ icon('edit') }} Bearbeiten</a>
+            <form method="post" action="/printers/{{ printer.id }}/delete" data-confirm="Drucker wirklich löschen?">
+              {{ csrf() }}
+              <button class="btn btn-danger btn-sm" type="submit">{{ icon('trash') }}</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty('printers', 'Noch kein Drucker', 'Lege deine Maschinen an, um Druckzeiten und Kosten zu erfassen.') }}
+      {% endif %}
+    </div>
+  </section>
+
+  <aside class="card" id="printer-form">
+    <div class="card-head">
+      <div class="card-title">{{ icon('edit' if edit_item else 'plus') }} {{ 'Drucker bearbeiten' if edit_item else 'Drucker anlegen' }}</div>
+      {% if edit_item %}<a class="btn btn-ghost btn-sm" href="/printers#printer-form">{{ icon('close') }}</a>{% endif %}
+    </div>
+    <form method="post" action="{{ '/printers/' ~ edit_item.id if edit_item else '/printers' }}">
+      {{ csrf() }}
+      <div class="card-body stack">
+        <div class="field">
+          <label>Name <span class="req">*</span></label>
+          <input name="name" value="{{ edit_item.name if edit_item else '' }}" placeholder="z. B. Bambu Lab P1S" required>
+        </div>
+        <div class="form-grid cols-2">
+          <div class="field">
+            <label>Stundensatz (€)</label>
+            <input name="cost_per_hour" type="number" min="0" step="0.01" value="{{ edit_item.cost_per_hour if edit_item else '1.50' }}">
+            <span class="hint">Maschinenkosten pro Stunde.</span>
+          </div>
+          <div class="field">
+            <label>Leistungsaufnahme (W)</label>
+            <input name="power_watt" type="number" min="0" step="1" value="{{ edit_item.power_watt if edit_item else '150' }}">
+            <span class="hint">Für die Stromkosten.</span>
+          </div>
+          <div class="field">
+            <label>Kaufpreis (€)</label>
+            <input name="purchase_price" type="number" min="0" step="0.01" value="{{ edit_item.purchase_price if edit_item else '0' }}">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <div class="check-row" style="margin-top:2px">
+              <input type="checkbox" id="active" name="active" value="1" {{ 'checked' if (edit_item.active if edit_item else true) else '' }}>
+              <label for="active">Drucker ist aktiv<span class="hint">Inaktive Drucker erscheinen nicht in der Auftragserfassung.</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notizen</label>
+          <textarea name="notes" placeholder="Düse, Bauraum, Wartung …">{{ edit_item.notes if edit_item and edit_item.notes else '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        {% if edit_item %}<a class="btn btn-ghost" href="/printers#printer-form">Abbrechen</a>{% endif %}
+        <button class="btn btn-primary" type="submit">{{ icon('check') }} {{ 'Speichern' if edit_item else 'Drucker anlegen' }}</button>
+      </div>
+    </form>
+  </aside>
+</div>
+{% endblock %}
