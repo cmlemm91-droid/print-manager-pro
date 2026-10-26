@@ -5,11 +5,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# Benutzer und Pfad bitte anpassen:
+
+# ---------------------------------------------------------------------------
+# Bitte anpassen: Benutzername und Projektordner (siehe README, Schritt 9)
+# User          = Ergebnis von: whoami
+# WorkingDirectory / ExecStart = Ergebnis von: pwd
+# ---------------------------------------------------------------------------
 User=pi
 WorkingDirectory=/home/pi/print-manager
 ExecStart=/home/pi/print-manager/.venv/bin/python main.py
+
 Environment=PORT=8000
+Environment=PYTHONUNBUFFERED=1
 Restart=always
 RestartSec=3
 
