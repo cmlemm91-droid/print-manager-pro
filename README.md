@@ -432,3 +432,17 @@ PRINT_MANAGER_DB=/home/pi/test.db PORT=8080 python3 main.py
 - Doppelte `update_printer`-Route entfernt, Lager-Differenzbuchung korrekt umgesetzt
 - Status-Workflow, Auftragsnummern, Marge, Stromkosten, Zahlungsstatus ergänzt
 - Offline-Design statt Tailwind-CDN, funktioniert auch ohne Internet
+
+---
+
+## Lizenz
+
+Dieses Projekt steht unter der **MIT-Lizenz**. Du darfst es frei nutzen, verändern und
+weitergeben – auch kommerziell –, solange der Copyright-Hinweis erhalten bleibt.
+Der vollständige Text liegt in der Datei [LICENSE](LICENSE).
+
+Die Software wird **ohne Gewähr** bereitgestellt. Für Schäden oder falsche Berechnungen
+(z. B. in Rechnungen) wird keine Haftung übernommen – bitte prüfe erzeugte Rechnungen
+vor dem Versand.
+
+Copyright (c) 2026 cmlemm91-droid
